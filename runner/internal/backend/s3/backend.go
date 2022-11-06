@@ -14,6 +14,7 @@ import (
 
 	"github.com/dstackai/dstackai/runner/consts"
 	"github.com/dstackai/dstackai/runner/internal/artifacts"
+	"github.com/dstackai/dstackai/runner/internal/artifacts/local"
 	"github.com/dstackai/dstackai/runner/internal/artifacts/s3fs"
 	"github.com/dstackai/dstackai/runner/internal/artifacts/simple"
 	"github.com/dstackai/dstackai/runner/internal/backend"
@@ -201,6 +202,11 @@ func (s *S3) Shutdown(ctx context.Context) error {
 	if s == nil {
 		return gerrors.New("Backend is nil")
 	}
+	if s.state == nil {
+		log.Trace(ctx, "State not exist")
+		return gerrors.Wrap(backend.ErrLoadStateFile)
+	}
+
 	if s.state.Resources.Local {
 		return nil
 	}
@@ -220,7 +226,8 @@ func (s *S3) GetArtifact(ctx context.Context, runName, localPath, remotePath str
 	if s == nil {
 		return nil
 	}
-	if mount {
+	switch {
+	case mount:
 		rootPath := path.Join(common.HomeDir(), consts.FUSE_PATH, runName)
 		iamRole := fmt.Sprintf("dstack_role_%s", strings.ReplaceAll(s.bucket, "-", "_"))
 		log.Trace(ctx, "Create FUSE artifact's engine", "Region", s.region, "Root path", rootPath, "IAM Role", iamRole)
@@ -230,15 +237,20 @@ func (s *S3) GetArtifact(ctx context.Context, runName, localPath, remotePath str
 			return nil
 		}
 		return art
+	case filepath.IsAbs(localPath):
+		log.Trace(ctx, "Create local artifact's engine", "Local path", localPath)
+		return local.NewLocal(localPath)
+	default:
+		rootPath := path.Join(common.HomeDir(), consts.USER_ARTIFACTS_PATH, runName)
+		log.Trace(ctx, "Create simple artifact's engine", "Region", s.region, "Root path", rootPath)
+		art, err := simple.NewSimple(s.bucket, s.region, rootPath, localPath, remotePath)
+		if err != nil {
+			log.Error(ctx, "Error create simple engine", "err", err)
+			return nil
+		}
+		return art
+
 	}
-	rootPath := path.Join(common.HomeDir(), consts.USER_ARTIFACTS_PATH, runName)
-	log.Trace(ctx, "Create simple artifact's engine", "Region", s.region, "Root path", rootPath)
-	art, err := simple.NewSimple(s.bucket, s.region, rootPath, localPath, remotePath)
-	if err != nil {
-		log.Error(ctx, "Error create simple engine", "err", err)
-		return nil
-	}
-	return art
 }
 
 func (s *S3) Requirements(ctx context.Context) models.Requirements {
