@@ -418,8 +418,8 @@ func (ex *Executor) processJob(ctx context.Context, stoppedCh chan struct{}) err
 		BindingPorts: ex.pm.BindPorts(ex.portID),
 		ShmSize:      resource.ShmSize,
 	}
-	ml := io.MultiWriter(logger, ex.streamLogs)
-	docker, err := ex.engine.Create(ctx, spec, ml)
+	mw := io.MultiWriter(logger, ex.streamLogs)
+	docker, err := ex.engine.Create(ctx, spec, mw)
 	if err != nil {
 		return gerrors.Wrap(err)
 	}

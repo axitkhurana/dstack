@@ -133,8 +133,8 @@ func check(configDir string) error {
 		if err != nil {
 			return cli.Exit("Failed to create docker container: "+err.Error(), 1)
 		}
-		err = docker.Run(ctx)
-		if err != nil {
+
+		if err = docker.Run(ctx); err != nil {
 			if strings.Contains(err.Error(), consts.NVIDIA_DRIVER_INIT_ERROR) {
 				return cli.Exit("NVIDIA driver error:"+err.Error(), 1)
 			}

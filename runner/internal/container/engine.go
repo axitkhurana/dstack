@@ -181,7 +181,7 @@ func (r *DockerRuntime) LogsWS(ctx context.Context) error {
 		return gerrors.Wrap(err)
 	}
 	go func() {
-		//_, err = io.Copy(r.logs, logs)
+		//_, err = io.Copy(r.logs, logs.Reader)
 		_, err = stdcopy.StdCopy(r.logs, r.logs, logs.Reader)
 		if err != nil {
 			log.Error(ctx, "failed to stream container logs", "err", gerrors.Wrap(err))
@@ -281,7 +281,8 @@ func ShellCommands(commands []string) []string {
 	}
 	arg := strings.Join(commands, " && ")
 	shell := []string{
-		"/bin/sh",
+		"/bin/bash",
+		"-i",
 		"-c",
 		arg,
 	}
